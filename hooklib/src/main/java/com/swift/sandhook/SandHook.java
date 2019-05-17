@@ -1,11 +1,16 @@
 package com.swift.sandhook;
 
+import android.os.Build;
+
 import com.swift.sandhook.annotation.HookMode;
+import com.swift.sandhook.blacklist.HookBlackList;
+import com.swift.sandhook.utils.FileUtils;
 import com.swift.sandhook.utils.ReflectionUtils;
 import com.swift.sandhook.utils.Unsafe;
 import com.swift.sandhook.wrapper.HookErrorException;
 import com.swift.sandhook.wrapper.HookWrapper;
 
+import java.io.File;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Member;
@@ -40,11 +45,7 @@ public class SandHook {
     public static int testAccessFlag;
 
     static {
-        if (SandHookConfig.libSandHookPath == null || SandHookConfig.libSandHookPath.length() == 0) {
-            System.loadLibrary("sandhook");
-        } else {
-            System.load(SandHookConfig.libSandHookPath);
-        }
+        SandHookConfig.libLoader.loadLib();
         init();
     }
 
@@ -84,7 +85,10 @@ public class SandHook {
             throw new HookErrorException("null input");
 
         if (globalHookEntityMap.containsKey(entity.target))
-            throw new HookErrorException("method <" + entity.target.getName() + "> has been hooked!");
+            throw new HookErrorException("method <" + entity.target.toString() + "> has been hooked!");
+
+        if (HookBlackList.canNotHook(target))
+            throw new HookErrorException("method <" + entity.target.toString() + "> can not hook, because of in blacklist!");
 
         resolveStaticMethod(target);
         resolveStaticMethod(backup);
@@ -132,22 +136,31 @@ public class SandHook {
         HookLog.d("method <" + entity.target.toString() + "> hook <" + (res == HookMode.INLINE ? "inline" : "replacement") + "> success!");
     }
 
-    public static Object callOriginMethod(Member originMethod, Object thiz, Object... args) throws Throwable {
+    public final static Object callOriginMethod(Member originMethod, Object thiz, Object... args) throws Throwable {
         HookWrapper.HookEntity hookEntity = globalHookEntityMap.get(originMethod);
         if (hookEntity == null || hookEntity.backup == null)
             return null;
-        return callOriginMethod(originMethod, hookEntity.backup, thiz, args);
+        return callOriginMethod(hookEntity.backupIsStub, originMethod, hookEntity.backup, thiz, args);
     }
 
-    public static Object callOriginByBackup(Method backupMethod, Object thiz, Object... args) throws Throwable {
+    public final static Object callOriginByBackup(Method backupMethod, Object thiz, Object... args) throws Throwable {
         HookWrapper.HookEntity hookEntity = globalBackupMap.get(backupMethod);
         if (hookEntity == null)
             return null;
-        return callOriginMethod(hookEntity.target, backupMethod, thiz, args);
+        return callOriginMethod(hookEntity.backupIsStub, hookEntity.target, backupMethod, thiz, args);
     }
 
-    public static Object callOriginMethod(Member originMethod, Method backupMethod, Object thiz, Object[] args) throws Throwable {
-        backupMethod.setAccessible(true);
+    public final static Object callOriginMethod(Member originMethod, Method backupMethod, Object thiz, Object[] args) throws Throwable {
+        return callOriginMethod(true, originMethod, backupMethod, thiz, args);
+    }
+
+    public final static Object callOriginMethod(boolean backupIsStub, Member originMethod, Method backupMethod, Object thiz, Object[] args) throws Throwable {
+        //reset declaring class
+        if (!backupIsStub && SandHookConfig.SDK_INT >= Build.VERSION_CODES.N) {
+            //holder in stack to avoid moving gc
+            Class originClassHolder = originMethod.getDeclaringClass();
+            ensureDeclareClass(originMethod, backupMethod);
+        }
         if (Modifier.isStatic(originMethod.getModifiers())) {
             try {
                 return backupMethod.invoke(null, args);
@@ -171,7 +184,13 @@ public class SandHook {
         }
     }
 
-    public static void ensureBackupMethod(Method backupMethod) {
+    public final static void ensureBackupMethod(Method backupMethod) {
+        if (SandHookConfig.SDK_INT < Build.VERSION_CODES.N)
+            return;
+        HookWrapper.HookEntity entity = globalBackupMap.get(backupMethod);
+        if (entity != null) {
+            ensureDeclareClass(entity.target, backupMethod);
+        }
     }
 
     public static void resolveStaticMethod(Member method) {
@@ -256,10 +275,16 @@ public class SandHook {
 
 
     public static boolean hasJavaArtMethod() {
+        if (SandHookConfig.SDK_INT >= Build.VERSION_CODES.O)
+            return false;
         if (artMethodClass != null)
             return true;
         try {
-            artMethodClass = Class.forName("java.lang.reflect.ArtMethod");
+            if (SandHookConfig.initClassLoader == null) {
+                artMethodClass = Class.forName("java.lang.reflect.ArtMethod");
+            } else {
+                artMethodClass = Class.forName("java.lang.reflect.ArtMethod", true, SandHookConfig.initClassLoader);
+            }
             return true;
         } catch (ClassNotFoundException e) {
             return false;
@@ -297,6 +322,24 @@ public class SandHook {
         return ReflectionUtils.passApiCheck();
     }
 
+    //disable JIT/AOT Profile
+    public static boolean tryDisableProfile(String selfPackageName) {
+        if (SandHookConfig.SDK_INT < Build.VERSION_CODES.N)
+            return false;
+        try {
+            File profile = new File("/data/misc/profiles/cur/" + SandHookConfig.curUse + "/" + selfPackageName + "/primary.prof");
+            if (!profile.getParentFile().exists()) return false;
+            try {
+                profile.delete();
+                profile.createNewFile();
+            } catch (Throwable throwable) {}
+            FileUtils.chmod(profile.getAbsolutePath(), FileUtils.FileMode.MODE_IRUSR);
+            return true;
+        } catch (Throwable throwable) {
+            return false;
+        }
+    }
+
     private static native boolean initNative(int sdk, boolean debug);
 
     public static native void setHookMode(int hookMode);
@@ -308,6 +351,7 @@ public class SandHook {
     private static native int hookMethod(Member originMethod, Method hookMethod, Method backupMethod, int hookMode);
 
     public static native void ensureMethodCached(Method hook, Method backup);
+    public static native void ensureDeclareClass(Member origin, Method backup);
 
     public static native boolean compileMethod(Member member);
     public static native boolean deCompileMethod(Member member, boolean disableJit);
@@ -318,6 +362,8 @@ public class SandHook {
     public static native boolean is64Bit();
 
     public static native boolean disableVMInline();
+
+    public static native boolean disableDex2oatInline(boolean disableDex2oat);
 
     @FunctionalInterface
     public interface HookModeCallBack {

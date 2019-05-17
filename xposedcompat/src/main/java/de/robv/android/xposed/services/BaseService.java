@@ -118,7 +118,7 @@ public abstract class BaseService {
 	 * @throws IOException In case an error occurred while reading the file.
 	 */
 	public abstract FileResult readFile(String filename, int offset, int length,
-			long previousSize, long previousTime) throws IOException;
+                                        long previousSize, long previousTime) throws IOException;
 
 	/**
 	 * Get a stream to the file content.

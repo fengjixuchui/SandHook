@@ -18,6 +18,8 @@ package com.swift.sandhook.utils;
 
 import android.util.Log;
 
+import com.swift.sandhook.HookLog;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
@@ -33,6 +35,8 @@ public final class Unsafe {
             getLongMethod;
 
     private volatile static boolean supported = false;
+
+    private static Class objectArrayClass = Object[].class;
 
     static {
         try {
@@ -73,7 +77,6 @@ public final class Unsafe {
         try {
             return (int) arrayBaseOffsetMethod.invoke(unsafe, cls);
         } catch (Exception e) {
-            Log.w(TAG, e);
             return 0;
         }
     }
@@ -83,7 +86,6 @@ public final class Unsafe {
         try {
             return (int) arrayIndexScaleMethod.invoke(unsafe, cls);
         } catch (Exception e) {
-            Log.w(TAG, e);
             return 0;
         }
     }
@@ -93,7 +95,6 @@ public final class Unsafe {
         try {
             return (int) getIntMethod.invoke(unsafe, array, offset);
         } catch (Exception e) {
-            Log.w(TAG, e);
             return 0;
         }
     }
@@ -103,7 +104,6 @@ public final class Unsafe {
         try {
             return (long) getLongMethod.invoke(unsafe, array, offset);
         } catch (Exception e) {
-            Log.w(TAG, e);
             return 0;
         }
     }
@@ -111,13 +111,13 @@ public final class Unsafe {
     public static long getObjectAddress(Object obj) {
         try {
             Object[] array = new Object[]{obj};
-            if (arrayIndexScale(Object[].class) == 8) {
-                return getLong(array, arrayBaseOffset(Object[].class));
+            if (arrayIndexScale(objectArrayClass) == 8) {
+                return getLong(array, arrayBaseOffset(objectArrayClass));
             } else {
-                return 0xffffffffL & getInt(array, arrayBaseOffset(Object[].class));
+                return 0xffffffffL & getInt(array, arrayBaseOffset(objectArrayClass));
             }
         } catch (Exception e) {
-            Log.w(TAG, e);
+            HookLog.e("get object address error", e);
             return -1;
         }
     }

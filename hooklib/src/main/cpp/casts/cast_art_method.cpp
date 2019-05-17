@@ -113,7 +113,7 @@ namespace SandHook {
             }
             int offset = findOffset(p, getParentSize(), 2, accessFlag);
             if (offset < 0) {
-                if (SDK_INT >= ANDROID_Q) {
+                if (SDK_INT >= ANDROID_N) {
                     return 4;
                 } else if (SDK_INT == ANDROID_L2) {
                     return 20;
@@ -128,9 +128,11 @@ namespace SandHook {
         }
     };
 
-    class CastShadowClass : public IMember<art::mirror::ArtMethod, void*> {
+    class CastShadowClass : public IMember<art::mirror::ArtMethod, GCRoot> {
     protected:
         Size calOffset(JNIEnv *jniEnv, mirror::ArtMethod *p) override {
+            if (SDK_INT < ANDROID_N)
+                return getParentSize() + 1;
             return 0;
         }
     };
@@ -139,8 +141,11 @@ namespace SandHook {
     class CastDexMethodIndex : public IMember<art::mirror::ArtMethod, uint32_t> {
     protected:
         Size calOffset(JNIEnv *jniEnv, art::mirror::ArtMethod *p) override {
-            if (SDK_INT >= ANDROID_P)
-                return getParentSize() + 1;
+            if (SDK_INT >= ANDROID_P) {
+                return CastArtMethod::accessFlag->getOffset()
+                + CastArtMethod::accessFlag->size()
+                + sizeof(uint32_t);
+            }
             int offset = 0;
             jint index = getIntFromJava(jniEnv, "com/swift/sandhook/SandHookMethodResolver",
                                         "dexMethodIndex");
@@ -151,6 +156,17 @@ namespace SandHook {
                 }
             }
             return getParentSize() + 1;
+        }
+    };
+
+    class CastHotnessCount : public IMember<art::mirror::ArtMethod, uint16_t> {
+    protected:
+        Size calOffset(JNIEnv *jniEnv, mirror::ArtMethod *p) override {
+            if (SDK_INT <= ANDROID_N)
+                return getParentSize() + 1;
+            return CastArtMethod::dexMethodIndex->getOffset()
+            + CastArtMethod::dexMethodIndex->size()
+            + sizeof(uint16_t);
         }
     };
 
@@ -185,6 +201,9 @@ namespace SandHook {
         declaringClass = new CastShadowClass();
         declaringClass->init(env, m1, size);
 
+        hotnessCount = new CastHotnessCount();
+        hotnessCount->init(env, m1, size);
+
         jclass neverCallTestClass = env->FindClass("com/swift/sandhook/ClassNeverCall");
 
 
@@ -196,7 +215,7 @@ namespace SandHook {
         bool beAot = entryPointQuickCompiled->get(neverCall) != entryPointQuickCompiled->get(neverCall2);
         if (beAot) {
             quickToInterpreterBridge = getInterpreterBridge(false);
-            if (quickToInterpreterBridge == nullptr || quickToInterpreterBridge <= 0) {
+            if (quickToInterpreterBridge == nullptr) {
                 quickToInterpreterBridge = entryPointQuickCompiled->get(neverCall);
                 canGetInterpreterBridge = false;
             }
@@ -213,7 +232,7 @@ namespace SandHook {
         beAot = entryPointQuickCompiled->get(neverCallNative) != entryPointQuickCompiled->get(neverCallNative2);
         if (beAot) {
             genericJniStub = getInterpreterBridge(true);
-            if (genericJniStub == nullptr || genericJniStub <= 0) {
+            if (genericJniStub == nullptr) {
                 genericJniStub = entryPointQuickCompiled->get(neverCallNative);
                 canGetJniBridge = false;
             }
@@ -237,7 +256,8 @@ namespace SandHook {
     ArrayMember<art::mirror::ArtMethod, void *> *CastArtMethod::dexCacheResolvedMethods = nullptr;
     IMember<art::mirror::ArtMethod, uint32_t> *CastArtMethod::dexMethodIndex = nullptr;
     IMember<art::mirror::ArtMethod, uint32_t> *CastArtMethod::accessFlag = nullptr;
-    IMember<art::mirror::ArtMethod, void*> *CastArtMethod::declaringClass = nullptr;
+    IMember<art::mirror::ArtMethod, GCRoot> *CastArtMethod::declaringClass = nullptr;
+    IMember<art::mirror::ArtMethod, uint16_t> *CastArtMethod::hotnessCount = nullptr;
     void *CastArtMethod::quickToInterpreterBridge = nullptr;
     void *CastArtMethod::genericJniStub = nullptr;
     void *CastArtMethod::staticResolveStub = nullptr;

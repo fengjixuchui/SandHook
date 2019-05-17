@@ -1,9 +1,15 @@
 # SandHook
 Android ART Hook
 
+## Version 
+
 [ ![Version](https://api.bintray.com/packages/ganyao114/maven/hooklib/images/download.svg) ](https://bintray.com/ganyao114/maven/hooklib/_latestVersion)
 
-[中文文档以及实现](https://blog.csdn.net/ganyao939543405/article/details/86661040)
+## Chinese
+
+[中文文档以及实现](https://github.com/ganyao114/SandHook/blob/master/doc/doc.md)
+
+[中文 Blog](https://blog.csdn.net/ganyao939543405/article/details/86661040)
 
 # arch support 
 
@@ -33,7 +39,7 @@ cant hook if lined
 implementation 'com.swift.sandhook:hooklib:3.1.0'
 ```
 
-- Annotation API
+## Annotation API
 
 --------------------------------------------------------------------
 
@@ -46,43 +52,29 @@ implementation 'com.swift.sandhook:hooklib:3.1.0'
 @HookClass(Activity.class)
 //@HookReflectClass("android.app.Activity")
 public class ActivityHooker {
-    
-    // can invoke to call origin
+
     @HookMethodBackup("onCreate")
     @MethodParams(Bundle.class)
     static Method onCreateBackup;
 
     @HookMethodBackup("onPause")
-    static Method onPauseBackup;
+    static HookWrapper.HookEntity onPauseBackup;
 
     @HookMethod("onCreate")
     @MethodParams(Bundle.class)
-    //@MethodReflectParams("android.os.Bundle")
-    public static void onCreate(Activity thiz, Bundle bundle) {
+    public static void onCreate(Activity thiz, Bundle bundle) throws Throwable {
         Log.e("ActivityHooker", "hooked onCreate success " + thiz);
-        onCreateBackup(thiz, bundle);
-    }
-
-    @HookMethodBackup("onCreate")
-    @MethodParams(Bundle.class)
-    public static void onCreateBackup(Activity thiz, Bundle bundle) {
-        //invoke self to kill inline
-        onCreateBackup(thiz, bundle);
+        SandHook.callOriginByBackup(onCreateBackup, thiz, bundle);
     }
 
     @HookMethod("onPause")
-    public static void onPause(Activity thiz) {
+    public static void onPause(@ThisObject Activity thiz) throws Throwable {
         Log.e("ActivityHooker", "hooked onPause success " + thiz);
-        onPauseBackup(thiz);
-    }
-
-    @HookMethodBackup("onPause")
-    public static void onPauseBackup(Activity thiz) {
-        //invoke self to kill inline
-        onPauseBackup(thiz);
+        onPauseBackup.callOrigin(thiz);
     }
 
 }
+
 
 
 //or like this:
@@ -129,7 +121,7 @@ in your plugin
 if OS <= 5.1 
 backup method can call itself to avoid be inlining
 
-- Xposed API
+## Xposed API
 
 --------------------------------------------------------------------
 
@@ -174,23 +166,60 @@ you must call backup method in hook method, if you want call it in other method,
 because when ART trigger JIT from profiling, JIT will invoke -> ResolveCompilingMethodsClass -> ClassLinker::ResolveMethod -> CheckIncompatibleClassChange -> ThrowIncompatibleClassChangeError finally!!!
 
 
-## Inline
+## Disable Inline
 
+### JIT inline
 
-we can do nothing to prevent some methods been inlined before app start, but we can try to disable VM Jit Inline after launch.
+We can do nothing to prevent some methods been inlined before app start, but we can try to disable VM Jit Inline after launch.
 
 if you will hook some method that could be inlined, please call SandHook.disableVMInline()(OS >= 7.0) in Application.OnCreate()
 
+### Inline by dex2oat
 
-### Deoptimize
+#### Background dex2oat
+
+SandHook.tryDisableProfile(getPackageName());
+
+#### dex2oat by DexClassLoader
+
+SandHook.disableDex2oatInline(fullyDisableDex2oat);
+
+or
+
+ArtDexOptimizer.dexoatAndDisableInline to dex2oat manuly 
+
+### Deoptimize(Boot Image)
+
 You can also deoptimize a caller that inlined your hook method by SandHook.deCompile(caller), just implement >= 7.0
 
+## Hidden API
+
+SandHook.passApiCheck();
+
+To bypass hidden api on P & Q
+
+# Native Hook
+
+#include "includes/sandhook.h"
+
+// can not call origin method now  
+bool nativeHookNoBackup(void* origin, void* hook);
 
 # Demo
 
-non-Root Xposed Environment Demo (VirtualApp With SandHook):
+## SandVXPosed
+
+non-Root Xposed Environment Demo (VirtualApp with SandHook):
 
 https://github.com/ganyao114/SandVXposed
+
+## EdXposed(SandHook Brunch)
+
+Unofficial xposed framework >= 8.0
+
+See release above
+
+https://github.com/ElderDrivers/EdXposed/tree/sandhook
 
 # Android Q(10.0)
 
