@@ -1,6 +1,6 @@
 # SandHook
-Android ART Hook
-
+- Android ART Hook
+- Native Inline Hook
 ## Version 
 
 [ ![Version](https://api.bintray.com/packages/ganyao114/maven/hooklib/images/download.svg) ](https://bintray.com/ganyao114/maven/hooklib/_latestVersion)
@@ -9,7 +9,9 @@ Android ART Hook
 
 [中文文档以及实现](https://github.com/ganyao114/SandHook/blob/master/doc/doc.md)
 
-[中文 Blog](https://blog.csdn.net/ganyao939543405/article/details/86661040)
+[中文 Blog](https://blog.csdn.net/ganyao939543405/article/details/86661040)  
+
+QQ Group：756071167
 
 # arch support 
 
@@ -200,10 +202,25 @@ To bypass hidden api on P & Q
 
 # Native Hook
 
-#include "includes/sandhook.h"
+## simple hook(no backup)
+#include "includes/sandhook.h"  
 
-// can not call origin method now  
 bool nativeHookNoBackup(void* origin, void* hook);
+
+## need backup origin method(unstabitily)
+#include "sanhook_native.h"  
+
+void* SandInlineHook(void* origin, void* replace);  
+
+void* SandInlineHookSym(const char* so, const char* symb, void* replace);  
+
+
+return is backup method
+
+## more
+
+- disassembler (only implement important instructions)
+- assembler (only implement important instructions)
 
 # Demo
 
