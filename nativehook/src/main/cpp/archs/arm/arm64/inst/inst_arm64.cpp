@@ -789,3 +789,131 @@ void A64_LDRSW_UIMM::assembler() {
     get()->rn = operand.base->getCode();
     get()->imm12 = operand.offset >> Size32;
 }
+
+
+
+A64_STP_LDP::A64_STP_LDP(A64_STRUCT_STP_LDP &inst) : InstructionA64(&inst) {
+    decode(&inst);
+}
+
+A64_STP_LDP::A64_STP_LDP(OP op, RegisterA64 &rt1, RegisterA64 &rt2, const MemOperand &operand) : op(op), rt1(&rt1),
+                                                                                          rt2(&rt2),
+                                                                                          operand(operand) {}
+
+void A64_STP_LDP::decode(A64_STRUCT_STP_LDP *inst) {
+    DECODE_OP;
+    Size s = Size(inst->size);
+    if (s == Size64) {
+        rt1 = XReg(inst->rt);
+        rt2 = XReg(inst->rt2);
+        operand.offset = signExtend64(7, inst->imm7) << 3;
+    } else {
+        rt1 = WReg(inst->rt);
+        rt2 = WReg(inst->rt2);
+        operand.offset = signExtend64(7, inst->imm7) << 2;
+    }
+    operand.base = XReg(inst->rn);
+    AdMod adMod = AdMod(inst->addrmode);
+    switch (adMod) {
+        case SignOffset:
+            operand.addr_mode = AddrMode::Offset;
+            break;
+        case PostIndex:
+            operand.addr_mode = AddrMode::PostIndex;
+            break;
+        case PreIndex:
+            operand.addr_mode = AddrMode::PreIndex;
+            break;
+    }
+}
+
+void A64_STP_LDP::assembler() {
+    SET_OPCODE(STP_LDP);
+    ENCODE_OP;
+    get()->size = rt1->isX() ? Size64 : Size32;
+    get()->rt = rt1->getCode();
+    get()->rt2 = rt2->getCode();
+    get()->rn = operand.base->getCode();
+    switch (operand.addr_mode) {
+        case Offset:
+            get()->addrmode = SignOffset;
+            break;
+        case AddrMode::PostIndex:
+            get()->addrmode = PostIndex;
+            break;
+        case AddrMode::PreIndex:
+            get()->addrmode = PreIndex;
+            break;
+        default:
+            valid = false;
+    }
+    get()->imm7 = TruncateToUint7(operand.offset >> (rt1->isX() ? 3 : 2));
+}
+
+
+
+A64_ADD_SUB_IMM::A64_ADD_SUB_IMM() {}
+
+A64_ADD_SUB_IMM::A64_ADD_SUB_IMM(A64_STRUCT_ADD_SUB_IMM &inst) : InstructionA64(&inst) {
+    decode(&inst);
+}
+
+A64_ADD_SUB_IMM::A64_ADD_SUB_IMM(A64_ADD_SUB_IMM::OP op, A64_ADD_SUB_IMM::S sign, RegisterA64 &rd,
+                         const Operand &operand) : op(op), sign(sign), rd(&rd), operand(operand) {}
+
+void A64_ADD_SUB_IMM::decode(A64_STRUCT_ADD_SUB_IMM *inst) {
+    DECODE_OP;
+    if (inst->sf == Size64) {
+        DECODE_RD(XReg);
+        operand.reg = XReg(inst->rn);
+    } else {
+        DECODE_RD(XReg);
+        operand.reg = WReg(inst->rn);
+    }
+    sign = S(inst->S);
+    DECODE_SHIFT;
+    if (operand.shift == LSL) {
+        operand.shift_extend_imm = get()->imm12;
+    } else if (operand.shift == LSR) {
+        operand.shift_extend_imm = get()->imm12 << 12;
+    } else {
+        valid = false;
+    }
+}
+
+void A64_ADD_SUB_IMM::assembler() {
+    SET_OPCODE(ADD_SUB_IMM);
+    ENCODE_OP;
+    ENCODE_RD;
+    get()->rn = operand.reg->getCode();
+    get()->sf = rd->isX() ? Size64 : Size32;
+    get()->S = sign;
+    ENCODE_SHIFT;
+    if (operand.shift == LSL) {
+        get()->imm12 = operand.shift_extend_imm;
+    } else if (operand.shift == LSR) {
+        get()->imm12 = operand.shift_extend_imm >> 12;
+    } else {
+        valid = false;
+    }
+}
+
+A64_MSR_MRS::A64_MSR_MRS(A64_STRUCT_MSR_MRS &inst) : InstructionA64(&inst) {
+    decode(&inst);
+}
+
+A64_MSR_MRS::A64_MSR_MRS(OP op, SystemRegister &systemRegister, RegisterA64 &rt) : op(op), systemRegister(
+        &systemRegister), rt(&rt) {}
+
+void A64_MSR_MRS::decode(A64_STRUCT_MSR_MRS *inst) {
+    DECODE_OP;
+    DECODE_RT(XReg);
+    //TODO
+}
+
+void A64_MSR_MRS::assembler() {
+    SET_OPCODE(MSR_MRS);
+    ENCODE_OP;
+    ENCODE_RT;
+    get()->sysreg = systemRegister->value();
+}

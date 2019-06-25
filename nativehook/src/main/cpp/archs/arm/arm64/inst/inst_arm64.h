@@ -36,6 +36,10 @@ inline U32 instCode() override { \
 return ENUM_VALUE(InstCodeA64, InstCodeA64::X); \
 }
 
+#define DEFINE_INST(X) class INST_A64(X) : public InstructionA64<STRUCT_A64(X)>
+
+#define CAST_A64(X,V) reinterpret_cast<SandHook::AsmA64::INST_A64(X) *>(V)
+
 using namespace SandHook::RegistersA64;
 using namespace SandHook::Asm;
 
@@ -99,9 +103,9 @@ namespace SandHook {
             inline explicit Operand(){};
             inline explicit Operand(S64 imm)
                     : immediate(imm), reg(&UnknowRegiser), shift(NO_SHIFT), extend(NO_EXTEND), shift_extend_imm(0) {}
-            inline Operand(RegisterA64* reg, Shift shift = LSL, int32_t imm = 0)
+            inline explicit Operand(RegisterA64* reg, int32_t imm = 0, Shift shift = LSL)
                     : immediate(0), reg(reg), shift(shift), extend(NO_EXTEND), shift_extend_imm(imm) {}
-            inline Operand(RegisterA64* reg, Extend extend, int32_t imm = 0)
+            inline explicit Operand(RegisterA64* reg, Extend extend, int32_t imm = 0)
                     : immediate(0), reg(reg), shift(NO_SHIFT), extend(extend), shift_extend_imm(imm) {}
 
             // =====
@@ -471,7 +475,7 @@ namespace SandHook {
         };
 
 
-        class INST_A64(BR_BLR_RET) : public InstructionA64<STRUCT_A64(BR_BLR_RET)> {
+        DEFINE_INST(BR_BLR_RET) {
         public:
 
             enum OP {
@@ -545,7 +549,7 @@ namespace SandHook {
 
             DEFINE_IS(STR_IMM)
 
-            DEFINE_INST_CODE(MOV_REG)
+            DEFINE_INST_CODE(STR_IMM)
 
             void decode(STRUCT_A64(STR_IMM) *inst) override;
 
@@ -573,7 +577,7 @@ namespace SandHook {
         };
 
 
-        class INST_A64(MOV_REG) : public InstructionA64<STRUCT_A64(MOV_REG)> {
+        DEFINE_INST(MOV_REG) {
         public:
 
             A64_MOV_REG();
@@ -596,7 +600,7 @@ namespace SandHook {
         };
 
 
-        class INST_A64(SUB_EXT_REG) : public InstructionA64<STRUCT_A64(SUB_EXT_REG)> {
+        DEFINE_INST(SUB_EXT_REG) {
         public:
 
             A64_SUB_EXT_REG();
@@ -623,7 +627,7 @@ namespace SandHook {
         };
 
 
-        class INST_A64(EXCEPTION_GEN) : public InstructionA64<STRUCT_A64(EXCEPTION_GEN)> {
+        DEFINE_INST(EXCEPTION_GEN) {
         public:
 
             enum OP {
@@ -737,6 +741,111 @@ namespace SandHook {
             void decode(STRUCT_A64(LDR_UIMM) *inst) override;
 
             void assembler() override;
+        };
+
+
+        DEFINE_INST(STP_LDP) {
+        public:
+            enum OP {
+                STP = 0b0,
+                LDP = 0b1
+            };
+
+            enum AdMod {
+                SignOffset = 0b10,
+                PostIndex = 0b01,
+                PreIndex = 0b11
+            };
+
+            enum Size {
+                Size32 = 0b00,
+                Size64 = 0b10
+            };
+
+            A64_STP_LDP(A64_STRUCT_STP_LDP &inst);
+
+            A64_STP_LDP(OP op, RegisterA64 &rt1, RegisterA64 &rt2, const MemOperand &operand);
+
+            DEFINE_IS(STP_LDP)
+
+            DEFINE_INST_CODE(STP_LDP)
+
+            void decode(A64_STRUCT_STP_LDP *inst) override;
+
+            void assembler() override;
+
+        public:
+            OP op;
+            RegisterA64* rt1;
+            RegisterA64* rt2;
+            MemOperand operand;
+        };
+
+
+        DEFINE_INST(ADD_SUB_IMM) {
+        public:
+
+            enum OP {
+                ADD = 0b0,
+                SUB = 0b1
+            };
+
+            enum S {
+                Sign = 0b1,
+                UnSign = 0b0
+            };
+
+            enum Size {
+                Size32 = 0b0,
+                Size64 = 0b1
+            };
+
+            A64_ADD_SUB_IMM();
+
+            A64_ADD_SUB_IMM(A64_STRUCT_ADD_SUB_IMM &inst);
+
+            A64_ADD_SUB_IMM(OP op, S sign, RegisterA64 &rd, const Operand &operand);
+
+            DEFINE_IS(ADD_SUB_IMM)
+
+            DEFINE_INST_CODE(ADD_SUB_IMM)
+
+            void decode(A64_STRUCT_ADD_SUB_IMM *inst) override;
+
+            void assembler() override;
+
+        public:
+            OP op;
+            S sign;
+            RegisterA64* rd;
+            Operand operand;
+        };
+
+
+        DEFINE_INST(MSR_MRS) {
+        public:
+
+            enum OP {
+                MSR = 0,
+                MRS = 1
+            };
+
+            A64_MSR_MRS(A64_STRUCT_MSR_MRS &inst);
+
+            A64_MSR_MRS(OP op, SystemRegister &systemRegister, RegisterA64 &rt);
+
+            DEFINE_INST_CODE(MSR_MRS)
+
+            DEFINE_IS(MSR_MRS)
+
+            void decode(A64_STRUCT_MSR_MRS *inst) override;
+
+            void assembler() override;
+
+        public:
+            OP op;
+            SystemRegister* systemRegister;
+            RegisterA64* rt;
         };
 
     }

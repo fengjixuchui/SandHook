@@ -203,8 +203,36 @@ DEFINE_STRUCT_A64(EXCEPTION_GEN) {
 struct STRUCT_A64(SVC) : STRUCT_A64(EXCEPTION_GEN) {
 };
 
+DEFINE_OPCODE_A64(STP_LDP, 0b10100)
+DEFINE_STRUCT_A64(STP_LDP) {
+    InstA64 rt:WideReg;
+    InstA64 rn:WideReg;
+    InstA64 rt2:WideReg;
+    InstA64 imm7:7;
+    InstA64 op:1;
+    InstA64 addrmode:2;
+    InstA64 opcode:5;
+    InstA64 size:2;
+};
 
+DEFINE_OPCODE_A64(ADD_SUB_IMM, 0b10001)
+DEFINE_STRUCT_A64(ADD_SUB_IMM) {
+    InstA64 rd:WideReg;
+    InstA64 rn:WideReg;
+    InstA64 imm12:12;
+    InstA64 shift:2;
+    InstA64 opcode:5;
+    InstA64 S:1;
+    InstA64 op:1;
+    InstA64 sf:1;
+};
 
-
+DEFINE_OPCODE_A64(MSR_MRS, 0b1101010100)
+DEFINE_STRUCT_A64(MSR_MRS) {
+    InstA64 rt:WideReg;
+    InstA64 sysreg:16;
+    InstA64 op:1;
+    InstA64 opcode:10;
+};
 
 #endif //SANDHOOK_NH_INST_AARCH64_H

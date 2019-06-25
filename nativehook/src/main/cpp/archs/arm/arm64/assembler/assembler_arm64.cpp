@@ -86,6 +86,10 @@ void AssemblerA64::Br(XRegister &rn) {
     Emit(reinterpret_cast<Unit<Base> *>(new INST_A64(BR_BLR_RET)(INST_A64(BR_BLR_RET)::BR, rn)));
 }
 
+void AssemblerA64::Blr(XRegister &rn) {
+    Emit(reinterpret_cast<Unit<Base> *>(new INST_A64(BR_BLR_RET)(INST_A64(BR_BLR_RET)::BLR, rn)));
+}
+
 void AssemblerA64::B(Off offset) {
     Emit(reinterpret_cast<Unit<Base> *>(new INST_A64(B_BL)(INST_A64(B_BL)::B, offset)));
 }
@@ -154,7 +158,7 @@ void AssemblerA64::Str(RegisterA64 &rt, const MemOperand& memOperand) {
 }
 
 void AssemblerA64::Ldr(RegisterA64 &rt, const MemOperand &memOperand) {
-    if (memOperand.addr_mode == Offset) {
+    if (memOperand.addr_mode == Offset && memOperand.offset >= 0) {
         Emit(reinterpret_cast<Unit<Base> *>(new INST_A64(LDR_UIMM)(rt, memOperand)));
     } else {
         Emit(reinterpret_cast<Unit<Base> *>(new INST_A64(LDR_IMM)(rt, memOperand)));
@@ -205,6 +209,54 @@ void AssemblerA64::Cmp(RegisterA64 &rn, const Operand &operand) {
 
 void AssemblerA64::Subs(RegisterA64 &rd, RegisterA64 &rn, const Operand &operand) {
     Emit(reinterpret_cast<Unit<Base> *>(new INST_A64(SUB_EXT_REG)(rd, rn, operand, SetFlags)));
+}
+
+void AssemblerA64::Stp(RegisterA64 &rt1, RegisterA64 &rt2, const MemOperand operand) {
+    Emit(reinterpret_cast<Unit<Base> *>(new INST_A64(STP_LDP)(INST_A64(STP_LDP)::STP, rt1, rt2, operand)));
+}
+
+void AssemblerA64::Ldp(RegisterA64 &rt1, RegisterA64 &rt2, const MemOperand operand) {
+    Emit(reinterpret_cast<Unit<Base> *>(new INST_A64(STP_LDP)(INST_A64(STP_LDP)::LDP, rt1, rt2, operand)));
+}
+
+void AssemblerA64::Add(RegisterA64 &rd, const Operand &operand) {
+    Emit(reinterpret_cast<Unit<Base> *>(new INST_A64(ADD_SUB_IMM)(INST_A64(ADD_SUB_IMM)::ADD, INST_A64(ADD_SUB_IMM)::UnSign, rd, operand)));
+}
+
+void AssemblerA64::Adds(RegisterA64 &rd, const Operand &operand) {
+    Emit(reinterpret_cast<Unit<Base> *>(new INST_A64(ADD_SUB_IMM)(INST_A64(ADD_SUB_IMM)::ADD, INST_A64(ADD_SUB_IMM)::Sign, rd, operand)));
+}
+
+void AssemblerA64::Sub(RegisterA64 &rd, const Operand &operand) {
+    Emit(reinterpret_cast<Unit<Base> *>(new INST_A64(ADD_SUB_IMM)(INST_A64(ADD_SUB_IMM)::SUB, INST_A64(ADD_SUB_IMM)::UnSign, rd, operand)));
+}
+
+void AssemblerA64::Subs(RegisterA64 &rd, const Operand &operand) {
+    Emit(reinterpret_cast<Unit<Base> *>(new INST_A64(ADD_SUB_IMM)(INST_A64(ADD_SUB_IMM)::SUB, INST_A64(ADD_SUB_IMM)::Sign, rd, operand)));
+}
+
+void AssemblerA64::Mrs(SystemRegister &sysReg, RegisterA64 &rt) {
+    Emit(reinterpret_cast<Unit<Base> *>(new INST_A64(MSR_MRS)(INST_A64(MSR_MRS)::MRS, sysReg, rt)));
+}
+
+void AssemblerA64::Msr(SystemRegister &sysReg, RegisterA64 &rt) {
+    Emit(reinterpret_cast<Unit<Base> *>(new INST_A64(MSR_MRS)(INST_A64(MSR_MRS)::MSR, sysReg, rt)));
+}
+
+void AssemblerA64::Mov(RegisterA64 &rd, RegisterA64& rt) {
+    if (rd == SP || rt == SP) {
+        Add(rd, Operand(&rt, 0));
+    } else {
+        Emit(reinterpret_cast<Unit<Base> *>(new INST_A64(MOV_REG)(rd, rt)));
+    }
+}
+
+void AssemblerA64::Svc(U16 imm) {
+    Emit(reinterpret_cast<Unit<Base> *>(new INST_A64(SVC)(imm)));
+}
+
+void AssemblerA64::Hvc(U16 imm) {
+    Emit(reinterpret_cast<Unit<Base> *>(new INST_A64(EXCEPTION_GEN)(INST_A64(EXCEPTION_GEN)::XXC, EL2, imm)));
 }
 
 
