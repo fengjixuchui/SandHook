@@ -120,6 +120,10 @@ Off T32_LDR_LIT::GetImmPCOffset() {
     return Get()->U == add ? Get()->imm12 : -Get()->imm12;
 }
 
+Addr T32_LDR_LIT::GetImmPCOffsetTarget() {
+    return ALIGN((Addr) GetPC() + offset, 4);
+}
+
 void T32_LDR_LIT::OnOffsetApply(Off offset) {
     this->offset = offset;
     if (offset >= 0) {
@@ -151,7 +155,6 @@ void T32_LDR_LIT::Assemble() {
         Get()->imm12 = static_cast<InstT32>(-offset);
     }
 }
-
 
 
 T32_MOV_MOVT_IMM::T32_MOV_MOVT_IMM(void *inst) : InstructionT32(inst) {
@@ -238,4 +241,20 @@ void T32_LDR_IMM::Assemble() {
 
 
 T32_SUB_IMM::T32_SUB_IMM(void *inst) : InstructionT32(inst) {
+}
+
+
+T32_HVC::T32_HVC(void *inst) : InstructionT32(inst) {}
+
+T32_HVC::T32_HVC(U16 imme) : imme(imme) {}
+
+void T32_HVC::Disassemble() {
+    imme = static_cast<U16>(COMBINE(Get()->imm4, Get()->imm12, 12));
+}
+
+void T32_HVC::Assemble() {
+    SET_OPCODE_MULTI(HVC, 1);
+    SET_OPCODE_MULTI(HVC, 2);
+    Get()->imm12 = BITS(imme, 0, 11);
+    Get()->imm4 = BITS(imme, 12, 15);
 }

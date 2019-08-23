@@ -199,6 +199,8 @@ namespace SandHook {
 
             Off GetImmPCOffset() override;
 
+            Addr GetImmPCOffsetTarget() override;
+
             void OnOffsetApply(Off offset) override;
 
             void Disassemble() override;
@@ -278,6 +280,23 @@ namespace SandHook {
 
             DEFINE_IS_EXT(SUB_IMM, TEST_INST_OPCODE(SUB_IMM, 1) && TEST_INST_OPCODE(SUB_IMM, 2) && (TEST_INST_FIELD(op, T3) || TEST_INST_FIELD(op, T4)))
 
+        };
+
+
+        DEFINE_INST(HVC) {
+        public:
+            T32_HVC(void *inst);
+
+            T32_HVC(U16 imme);
+
+            DEFINE_IS_EXT(HVC, TEST_INST_OPCODE(HVC, 1) && TEST_INST_OPCODE(HVC, 2))
+
+            void Disassemble() override;
+
+            void Assemble() override;
+
+        public:
+            U16 imme;
         };
 
     }

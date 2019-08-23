@@ -173,16 +173,6 @@ XposedHelpers.findAndHookMethod(Activity.class, "onResume", new XC_MethodHook() 
 
 # Notice
 
-## Call Origin
-
-!!!!!!!!  
-
-when OS >= 8.0
-you must call backup method in hook method, if you want call it in other method, please call  SandHook.compileMethod(otherMethod) before call backup method.
-    
-because when ART trigger JIT from profiling, JIT will invoke -> ResolveCompilingMethodsClass -> ClassLinker::ResolveMethod -> CheckIncompatibleClassChange -> ThrowIncompatibleClassChangeError finally!!!
-
-
 ## Disable Inline
 
 ### JIT inline
@@ -215,6 +205,12 @@ SandHook.passApiCheck();
 
 To bypass hidden api on P & Q
 
+## Debuggable
+
+You must set debuggble of the target hook process before init when OS >= 8.0.  
+
+SandHookConfig.DEBUG = <Debuggable of target process>  
+
 # Native Hook
 
 ## simple hook(no backup)
@@ -223,7 +219,7 @@ To bypass hidden api on P & Q
 bool nativeHookNoBackup(void* origin, void* hook);
 
 ## need backup origin method
-#include "sanhook_native.h"  
+#include "sandhook_native.h"  
 
 void* SandInlineHook(void* origin, void* replace);  
 
@@ -238,6 +234,19 @@ you can insert a break point in body of method(not only start of method), so you
 
 
 bool SandBreakpoint(void* origin, void (*callback)(REG[]));
+
+## short method 
+
+#include "sandhook_native.h"  
+
+void* SandSingleInstHook(void* origin, void* replace);  
+
+void* SandSingleInstHookSym(const char* so, const char* symb, void* replace);  
+
+use it when your method is <= 16bytes(64bit)/8bytes(32bit)  
+
+SandSingleInstHook only need 4bytes length
+
 
 ## more
 
