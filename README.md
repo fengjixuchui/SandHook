@@ -11,7 +11,9 @@
 
 [中文 Blog](https://blog.csdn.net/ganyao939543405/article/details/86661040)  
 
-QQ Group：756071167
+QQ Group：756071167  
+
+与 VirtualApp 相关的商业合作请联系 QQ939543405
 
 # arch support 
 
@@ -118,7 +120,7 @@ SanHook.public static boolean hook(Member target, Method hook, Method backup) {}
 if hookers is in plugin(like xposed):  
 
 ```groovy
-provided 'com.swift.sandhook:hookannotation:4.0.0'
+provided 'com.swift.sandhook:hookannotation:4.0.2'
 ```
   
 in your plugin
@@ -135,12 +137,12 @@ Now you can use Xposed api:
 We have two different implements:
 ```groovy
 //stable
-implementation 'com.swift.sandhook:xposedcompat:4.0.0'
+implementation 'com.swift.sandhook:xposedcompat:4.0.2'
 
 //or
 
 //hook fast first time
-implementation 'com.swift.sandhook:xposedcompat_new:4.0.0'
+implementation 'com.swift.sandhook:xposedcompat_new:4.0.2'
 ```
 
 ```java
@@ -233,7 +235,9 @@ return is backup method
 you can insert a break point in body of method(not only start of method), so you can read/write registers in break point.  
 
 
-bool SandBreakpoint(void* origin, void (*callback)(REG[]));
+bool SandBreakPoint(void* origin, void (*callback)(REG[]));  
+
+bool SandSingleInstBreakPoint(void *origin, BreakCallback(callback));
 
 ## short method 
 
